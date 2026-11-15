@@ -5,402 +5,163 @@
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>WebhookFlare - Real-time webhook testing</title>
+	<link rel="describedby" href="/llms.txt" />
 	<script src="https://cdn.tailwindcss.com"></script>
 	<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-	<script type="module">
-		import { codeToHtml } from 'https://esm.sh/shiki@3.15.0';
-		window.shikiCodeToHtml = codeToHtml;
-	</script>
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-	<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet" />
-	<link
-		href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap"
-		rel="stylesheet" />
+	<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap" rel="stylesheet" />
 	<style>
-		* {
-			scrollbar-color: #d4d4d4 transparent;
-			scrollbar-width: thin;
-			-webkit-tap-highlight-color: transparent;
-			font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-			-webkit-font-smoothing: antialiased;
-			-moz-osx-font-smoothing: grayscale;
-			font-smooth: always;
-		}
-
-		.mono {
-			font-family: 'Geist Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-		}
-
-		.method-badge {
-			display: inline-flex;
-			align-items: center;
-			gap: 0.375rem;
-			border-radius: 0.375rem;
-			padding: 0.125rem 0.375rem;
-			font-weight: 500;
-			font-size: 12px;
-			line-height: 20px;
-			border: none;
-			outline: none;
-			transition: background-color 0.15s;
-			display: inline-flex;
-			justify-content: center;
-			align-items: center;
-			min-width: 60px;
-			max-width: 80px;
-		}
-
-		.obfuscated {
-			filter: blur(5px);
-			transition: filter 0.3s ease;
-		}
-
-		.obfuscated:hover {
-			filter: blur(0px);
-		}
-
-		.method-GET {
-			color: rgb(21, 128, 61);
-			background: rgb(34, 197, 94, 0.15);
-		}
-
-		.method-POST {
-			color: rgb(3, 105, 161);
-			background: rgb(59, 130, 246, 0.15);
-		}
-
-		.method-PUT {
-			color: rgb(161, 98, 7);
-			background: rgb(234, 179, 8, 0.15);
-		}
-
-		.method-DELETE {
-			color: rgb(190, 18, 60);
-			background: rgb(239, 68, 68, 0.15);
-		}
-
-		.method-PATCH {
-			color: rgb(67, 56, 202);
-			background: rgb(167, 139, 250, 0.15);
-		}
-
-		.request-row {
-			border-bottom: 1px solid #e5e7eb;
-			transition: background-color 0.1s, border-color 0.1s;
-			cursor: pointer;
-			position: relative;
-		}
-
-		.request-row:hover {
-			background-color: #f9fafb;
-		}
-
-		.request-row.selected {
-			background-color: #f0f9ff;
-		}
-
-		.request-row.selected::before {
-			content: '';
-			position: absolute;
-			left: 0;
-			top: 0;
-			bottom: 0;
-			width: 2px;
-			background-color: #3b82f6;
-		}
-
-		.status-dot {
-			width: 6px;
-			height: 6px;
-			border-radius: 50%;
-			display: inline-block;
-		}
-
-		.status-connected {
-			background: #10b981;
-			animation: pulse 2s ease-in-out infinite;
-		}
-
-		.status-disconnected {
-			background: #9ca3af;
-		}
-
-		@keyframes pulse {
-
-			0%,
-			100% {
-				opacity: 1;
-			}
-
-			50% {
-				opacity: 0.5;
-			}
-		}
-
-		.animate-flash {
-			animation: flash 0.5s ease-out;
-		}
-
-		@keyframes flash {
-			0% {
-				background-color: #dbeafe;
-			}
-
-			100% {
-				background-color: transparent;
-			}
-		}
-
-		/* Shiki code highlighting styles */
-		.shiki-wrapper {
-			overflow-x: auto;
-			border-radius: 0.375rem;
-			font-family: 'Geist Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
-		}
-
-		.shiki-wrapper pre {
-			margin: 0;
-			padding: 0;
-			background: transparent !important;
-			font-family: 'Geist Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
-		}
-
-		.shiki-wrapper code {
-			font-family: 'Geist Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
-			font-size: 0.875rem;
-			line-height: 1.5;
-		}
-
-		.shiki-wrapper * {
-			font-family: 'Geist Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
-		}
+		* { scrollbar-color: #d4d4d4 transparent; scrollbar-width: thin; }
+		body { font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+		.mono, .mono * { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+		.method-badge { display: inline-flex; justify-content: center; min-width: 3.4rem; border-radius: 0.25rem; padding: 0.05rem 0.35rem; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+		.method-GET { color: #15803d; background: #dcfce7; }
+		.method-POST { color: #1d4ed8; background: #dbeafe; }
+		.method-PUT { color: #a16207; background: #fef9c3; }
+		.method-DELETE { color: #be123c; background: #ffe4e6; }
+		.method-PATCH { color: #6d28d9; background: #ede9fe; }
+		.status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+		.status-connected { background: #10b981; }
+		.status-disconnected { background: #9ca3af; }
+		.json-key { color: #1d4ed8; }
+		.json-str { color: #047857; }
+		.json-num { color: #b45309; }
+		.json-bool { color: #7c3aed; }
+		.json-null { color: #78716c; }
+		.xml-tag { color: #1d4ed8; }
+		.xml-attr { color: #b45309; }
+		.xml-str { color: #047857; }
+		.xml-comment { color: #a8a29e; }
+		.request-selected { background: #e0f2fe; box-shadow: inset 3px 0 0 #0284c7; }
 	</style>
 </head>
 
-<body class="bg-white h-screen overflow-hidden" x-data="webhookApp()" x-init="init()">
+<body class="bg-neutral-100 h-screen overflow-hidden text-neutral-900" x-data="webhookApp()" x-init="init()">
 	<div class="h-full flex flex-col">
-		<!-- Header -->
-		<div class="border-b border-neutral-200 p-4 flex-shrink-0">
-			<div class="flex items-center justify-between">
-				<div>
-					<h1 class="font-semibold text-neutral-900">WebhookFlare</h1>
-					<p class="text-sm text-neutral-500 mt-0.5">Real-time webhook testing</p>
-				</div>
-				<div class="flex items-center gap-3">
-					<div class="flex items-center gap-2 text-sm text-neutral-600">
-						<span class="status-dot" :class="statusClass"></span>
-						<span x-text="statusText"></span>
-					</div>
-					<div class="text-sm text-neutral-500" x-show="!isExpired && timeLeft">
-						Expires in <span class="font-mono font-medium text-neutral-700" x-text="timeLeft"></span>
-					</div>
-					<div class="text-sm text-neutral-500" x-show="isExpired">
-						<span class="font-medium text-red-600">This Hook has been expired</span>
-					</div>
-					<div class="text-sm text-neutral-500"><span x-text="requests.length"></span> requests</div>
-				</div>
+		<div class="border-b border-neutral-200 bg-white px-4 py-2.5 flex items-center justify-between gap-4 flex-shrink-0">
+			<div class="min-w-0">
+				<h1 class="font-semibold leading-none">WebhookFlare</h1>
+				<p class="text-xs text-neutral-500 mt-1">Inspect captured requests</p>
+			</div>
+			<div class="flex items-center gap-3 text-sm text-neutral-600 shrink-0">
+				<span class="status-dot" :class="statusClass"></span>
+				<span x-text="statusText"></span>
+				<span class="text-neutral-400" x-show="!isExpired && timeLeft">expires <span class="font-mono text-neutral-800" x-text="timeLeft"></span></span>
+				<span class="text-red-600" x-show="isExpired">expired</span>
+				<span class="font-mono" x-text="filteredRequests.length + (query ? '/' + requests.length : '') + ' requests'"></span>
 			</div>
 		</div>
 
-
-		<!-- Webhook URL Section -->
-		<div class="border-b border-neutral-200 p-4 bg-neutral-50 flex-shrink-0">
-			<div class="flex items-center gap-2">
-				<label class="text-sm font-medium text-neutral-700 w-20">Endpoint</label>
-				<input type="text" readonly
-					class="flex-1 px-2 py-1.5 border border-neutral-300 bg-white mono text-sm focus:outline-none focus:border-neutral-400 rounded"
-					:value="webhookUrl" />
-				<button
-					class="px-3 py-1.5 bg-neutral-800 text-white text-sm font-medium hover:bg-neutral-800 transition-colors rounded"
-					@click="copyToClipboard()" x-text="copyButtonText"></button>
-				<button
-					class="px-3 py-1.5 border border-neutral-300 text-sm font-medium hover:bg-neutral-50 transition-colors rounded"
-					@click="generateNewWebhook()">
-					New Endpoint
-				</button>
-			</div>
+		<div class="border-b border-neutral-200 bg-white px-4 py-2 flex items-center gap-2 flex-shrink-0">
+			<input type="text" readonly class="flex-1 min-w-0 px-2 py-1.5 border border-neutral-300 bg-neutral-50 mono text-xs rounded" :value="webhookUrl" />
+			<button class="px-2.5 py-1.5 bg-neutral-900 text-white text-xs rounded" @click="copyToClipboard()" x-text="copyButtonText"></button>
+			<label class="text-xs text-neutral-500 shrink-0">Keep</label>
+			<select x-model="ttl" class="px-2 py-1.5 border border-neutral-300 bg-white text-xs rounded">
+				<option value="1h">1 hour</option>
+				<option value="6h">6 hours</option>
+				<option value="24h">24 hours</option>
+				<option value="7d">7 days</option>
+				<option value="30d">30 days</option>
+			</select>
+			<button class="px-2.5 py-1.5 border border-neutral-300 text-xs rounded bg-white" @click="generateNewWebhook()">New</button>
 		</div>
 
-		<!-- Main Content: Split Layout -->
-		<div class="flex flex-1 overflow-hidden">
-			<!-- Left: Requests List -->
-			<div class="w-2/3 border-r border-neutral-200 flex flex-col">
-				<div
-					class="px-6 py-2.5 bg-neutral-50 border-b border-neutral-200 flex items-center text-sm font-medium text-neutral-600 flex-shrink-0">
-					<div class="w-40">Date</div>
-					<div class="w-24">Method</div>
-					<div class="flex-1">Body Preview</div>
-					<div class="w-16 text-right">ID</div>
+		<div class="flex flex-1 min-h-0">
+			<aside class="w-80 border-r border-neutral-200 bg-white flex flex-col min-h-0">
+				<div class="p-2 border-b border-neutral-200">
+					<input x-model="query" type="search" placeholder="Filter caller, operation, body…" class="w-full px-2 py-1.5 border border-neutral-300 rounded text-sm" />
 				</div>
 				<div class="flex-1 overflow-y-auto">
-					<div>
-						<template x-if="requests.length === 0">
-							<div class="text-center text-neutral-400 py-12">
-								<svg class="w-12 h-12 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor"
-									viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-										d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-								</svg>
-								<p class="text-sm">Waiting for requests...</p>
+					<template x-if="filteredRequests.length === 0">
+						<p class="text-sm text-neutral-400 text-center py-10" x-text="requests.length ? 'No matches' : 'Waiting for requests…'"></p>
+					</template>
+					<template x-for="request in filteredRequests" :key="request.id">
+						<button type="button" class="w-full text-left px-3 py-2 border-b border-neutral-100 hover:bg-neutral-50"
+							:id="'req-' + request.id"
+							:class="selectedRequestId === request.id ? 'request-selected' : ''"
+							:aria-current="selectedRequestId === request.id ? 'true' : 'false'"
+							@click="selectRequest(request.id)">
+							<div class="flex items-center gap-2">
+								<span class="method-badge" :class="`method-${request.method}`" x-text="request.method"></span>
+								<span class="text-[11px] text-neutral-400 mono ml-auto" x-text="formatDate(request.timestamp)"></span>
 							</div>
-						</template>
-						<template x-for="(request, index) in requests" :key="request.id">
-							<div class="request-row"
-								:class="{ 'animate-flash': index === 0 && request.isNew, 'selected': selectedRequestId === request.id }"
-								@click="selectRequest(request.id)">
-								<div class="px-6 py-2 flex items-center">
-									<div class="w-40 text-sm tracking-tighter text-neutral-500 mono"
-										x-text="formatDate(request.timestamp)"></div>
-									<div class="w-24">
-										<span class="method-badge" :class="`method-${request.method}`"
-											x-text="request.method"></span>
-									</div>
-									<div class="flex-1 text-sm text-neutral-700 truncate mono tracking-tight"
-										:class="{ 'text-neutral-400': !request.body }"
-										x-text="getBodyPreview(request.body)"></div>
-									<div class="w-16 text-right text-sm text-neutral-400 mono font-semibold"
-										x-text="`#${request.id}`"></div>
-								</div>
-							</div>
-						</template>
-					</div>
+							<div class="mt-1 text-sm font-medium leading-snug break-words" x-text="summary(request).title"></div>
+							<div class="mt-0.5 text-xs text-neutral-500 truncate" x-show="summary(request).subtitle" x-text="summary(request).subtitle"></div>
+						</button>
+					</template>
 				</div>
-			</div>
+			</aside>
 
-			<!-- Right: Request Details Sidebar -->
-			<div class="w-1/3 bg-neutral-50 overflow-y-auto">
+			<section class="flex-1 min-w-0 flex flex-col bg-neutral-50">
 				<template x-if="!selectedRequest">
-					<div class="flex items-center justify-center h-full text-neutral-400">
-						<div class="text-center">
-							<svg class="w-12 h-12 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor"
-								viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-									d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-							</svg>
-							<p class="text-sm">Select a request to view details</p>
-						</div>
-					</div>
+					<div class="m-auto text-sm text-neutral-400">Select a request</div>
 				</template>
-
 				<template x-if="selectedRequest">
-					<div>
-						<!-- Header -->
-						<div
-							class="px-4 py-2 bg-white border-b border-neutral-200 flex items-center justify-between sticky top-0">
-							<div class="flex items-center justify-between">
-								<div class="flex items-center gap-2">
-									<span class="text-sm text-neutral-400 mono"
-										x-text="`#${selectedRequest.id}`"></span>
-									<span class="method-badge" :class="`method-${selectedRequest.method}`"
-										x-text="selectedRequest.method"></span>
-								</div>
+					<div class="flex flex-col min-h-0 h-full">
+						<div class="px-4 py-2 bg-white border-b border-neutral-200 flex items-center gap-2 flex-shrink-0">
+							<span class="method-badge" :class="`method-${selectedRequest.method}`" x-text="selectedRequest.method"></span>
+							<span class="text-xs text-neutral-400 mono" x-text="'#' + selectedRequest.id"></span>
+							<span class="text-xs text-neutral-500 mono" x-text="formatDate(selectedRequest.timestamp)"></span>
+							<div class="ml-auto flex gap-1">
+								<button class="px-2 py-1 text-xs rounded border" :class="tab === 'body' ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white border-neutral-300'" @click="tab = 'body'">Body</button>
+								<button class="px-2 py-1 text-xs rounded border" :class="tab === 'headers' ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white border-neutral-300'" @click="tab = 'headers'">Headers</button>
+								<button class="px-2 py-1 text-xs rounded border" :class="tab === 'meta' ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white border-neutral-300'" @click="tab = 'meta'">Metadata</button>
+								<button class="px-2 py-1 text-xs rounded border bg-white border-neutral-300" @click="copyActive()" x-text="copyStates.active"></button>
 							</div>
-							<div class="text-sm text-neutral-500 mono tracking-tighter"
-								x-text="formatDate(selectedRequest.timestamp)"></div>
 						</div>
-
-						<!-- Query Parameters -->
-						<template x-if="selectedRequest.query && getQueryParams(selectedRequest).length > 0">
-							<div class="p-4">
-								<div class="bg-white border border-neutral-200 rounded-md overflow-hidden">
-									<div class="px-4 py-3 flex items-center justify-between">
-										<div class="text-sm font-semibold text-neutral-700">Query Parameters</div>
-										<button
-											class="bg-neutral-50 rounded px-3 py-1.5 text-xs font-medium rounded hover:bg-neutral-100 transition-colors"
-											@click="copyQueryParams()" x-text="copyStates.queryParams"></button>
-									</div>
-									<div class="divide-y divide-neutral-200">
-										<template x-for="[key, value] in getQueryParams(selectedRequest)" :key="key">
-											<div class="text-sm mono px-4 py-3">
-												<div class="text-neutral-400 leading-relaxed text-sm mb-0.5"
-													x-text="key">
-												</div>
-												<div class="text-neutral-700 break-all font-mono" x-text="value"></div>
-											</div>
-										</template>
-									</div>
-								</div>
-							</div>
-						</template>
-
-						<!-- Cloudflare Metadata -->
-						<template x-if="selectedRequest.metadata && getMetadata(selectedRequest)">
-							<div class="px-4 py-2">
-								<div class="bg-white border border-neutral-200 rounded-md overflow-hidden">
-									<div class="px-4 py-3 flex items-center justify-between">
-										<div class="text-sm font-semibold text-neutral-700">Request Metadata</div>
-										<button
-											class="bg-neutral-50 rounded px-3 py-1.5 text-xs font-medium rounded hover:bg-neutral-100 transition-colors"
-											@click="copyMetadata()">Copy</button>
-									</div>
-									<div class="divide-y divide-neutral-200">
-										<template x-for="[key, value] in Object.entries(getMetadata(selectedRequest))"
-											:key="key">
-											<template x-if="value">
-												<div class="text-sm mono px-4 py-3">
-													<div class="text-neutral-500 leading-relaxed text-xs mb-0.5"
-														x-text="formatMetadataKey(key)"></div>
-													<div class="text-neutral-700 font-medium text-sm break-all font-mono"
-														:class="{ 'obfuscated': key === 'userIP' }" x-text="value">
+						<div class="flex-1 overflow-auto p-4">
+							<template x-if="tab === 'body'">
+								<div class="bg-white border border-neutral-200 rounded-md">
+									<template x-if="!selectedRequest.body">
+										<p class="p-4 text-sm text-neutral-400">No body</p>
+									</template>
+									<template x-if="selectedRequest.body && bodyFields(selectedRequest)">
+										<div class="divide-y divide-neutral-100">
+											<template x-for="field in bodyFields(selectedRequest)" :key="field.key">
+												<div class="grid grid-cols-[11rem_minmax(0,1fr)] gap-3 px-4 py-2.5">
+													<div class="text-xs text-neutral-500 pt-0.5 break-words">
+														<span x-text="field.key"></span>
+														<span x-show="field.lang !== 'text'" class="ml-1 uppercase tracking-wide text-[10px] text-sky-700" x-text="field.lang"></span>
 													</div>
+													<pre x-show="field.html" class="text-sm mono whitespace-pre-wrap break-all" x-html="field.html"></pre>
+													<pre x-show="!field.html" class="text-sm mono whitespace-pre-wrap break-all text-neutral-900" x-text="field.value"></pre>
 												</div>
 											</template>
-										</template>
-									</div>
+										</div>
+									</template>
+									<template x-if="selectedRequest.body && !bodyFields(selectedRequest)">
+										<pre class="p-4 text-sm mono whitespace-pre-wrap break-all" x-html="highlightedBody(selectedRequest)"></pre>
+									</template>
 								</div>
-							</div>
-						</template>
-
-						<!-- Headers -->
-						<div class="px-4 py-2">
-							<div class="bg-white border border-neutral-200 rounded-md overflow-hidden">
-								<div class="px-4 py-3 flex items-center justify-between">
-									<div class="text-sm font-semibold text-neutral-700">Headers</div>
-									<button
-										class="bg-neutral-50 rounded px-3 py-1.5 text-xs font-medium rounded hover:bg-neutral-100 transition-colors"
-										@click="copyHeaders()" x-text="copyStates.headers"></button>
-								</div>
-								<div class="divide-y divide-neutral-200">
+							</template>
+							<template x-if="tab === 'headers'">
+								<div class="bg-white border border-neutral-200 rounded-md divide-y divide-neutral-100">
 									<template x-for="[key, value] in getHeaders(selectedRequest)" :key="key">
-										<div class="text-sm px-4 py-3">
-											<div class="text-neutral-400 leading-relaxed text-sm mb-0.5" x-text="key">
-											</div>
-											<div class="text-neutral-700 break-all font-mono"
-												:class="{ 'obfuscated': key === 'cf-connecting-ip' || key === 'x-real-ip' }"
-												x-text="value"></div>
+										<div class="grid grid-cols-[14rem_minmax(0,1fr)] gap-3 px-4 py-2">
+											<div class="text-xs text-neutral-500 break-all" x-text="key"></div>
+											<div class="text-sm mono break-all" x-text="value"></div>
 										</div>
 									</template>
 								</div>
-							</div>
-						</div>
-
-						<!-- Body -->
-						<div class="p-4">
-							<div class="bg-white border border-neutral-200 rounded-md overflow-hidden">
-								<div class="px-4 py-3 flex items-center justify-between">
-									<div class="text-sm font-semibold text-neutral-700">Body</div>
-									<button
-										class="bg-neutral-50 rounded px-3 py-1.5 text-xs font-medium rounded hover:bg-neutral-100 transition-colors"
-										@click="copyBody()" x-text="copyStates.body"></button>
-								</div>
-								<div class="px-4 py-3">
-									<template x-if="!selectedRequest.body">
-										<div class="text-sm mono text-neutral-400">No body</div>
+							</template>
+							<template x-if="tab === 'meta'">
+								<div class="bg-white border border-neutral-200 rounded-md divide-y divide-neutral-100">
+									<template x-if="!getMetadata(selectedRequest)">
+										<p class="p-4 text-sm text-neutral-400">No metadata</p>
 									</template>
-									<template x-if="selectedRequest.body && formattedBody">
-										<div class="shiki-wrapper font-mono mono" x-html="formattedBody"></div>
-									</template>
-									<template x-if="selectedRequest.body && !formattedBody">
-										<pre class="text-sm mono text-neutral-800 overflow-x-auto whitespace-pre-wrap break-all"
-											x-text="selectedRequest.body"></pre>
+									<template x-for="[key, value] in Object.entries(getMetadata(selectedRequest) || {})" :key="key">
+										<div class="grid grid-cols-[11rem_minmax(0,1fr)] gap-3 px-4 py-2">
+											<div class="text-xs text-neutral-500" x-text="formatMetadataKey(key)"></div>
+											<div class="text-sm mono break-all" x-text="value"></div>
+										</div>
 									</template>
 								</div>
-							</div>
+							</template>
 						</div>
 					</div>
 				</template>
-			</div>
+			</section>
 		</div>
 	</div>
 
@@ -411,48 +172,44 @@
 				currentBinId: null,
 				requests: [],
 				selectedRequestId: null,
+				pendingReq: null,
 				status: 'connecting',
 				statusText: 'Connecting',
-				copyButtonText: 'Copy',
-				formattedBody: '',
-				copyStates: {
-					queryParams: 'Copy',
-					metadata: 'Copy',
-					headers: 'Copy',
-					body: 'Copy',
-				},
+				copyButtonText: 'Copy URL',
+				copyStates: { active: 'Copy' },
 				expiresAt: null,
 				timeLeft: '',
 				timerInterval: null,
 				isExpired: false,
+				ttl: '6h',
+				query: '',
+				tab: 'body',
 
 				get webhookUrl() {
 					return this.currentBinId ? `${window.location.origin}/hook/${this.currentBinId}` : 'Generating...';
 				},
-
-				get curlCommand() {
-					return this.currentBinId
-						? `curl -X POST ${this.webhookUrl} -H "Content-Type: application/json" -d '{"test": "data"}'`
-						: 'Generating...';
-				},
-
 				get selectedRequest() {
 					return this.requests.find((r) => r.id === this.selectedRequestId) || null;
 				},
-
+				get filteredRequests() {
+					const q = this.query.trim().toLowerCase();
+					if (!q) return this.requests;
+					return this.requests.filter((r) => {
+						const s = this.summary(r);
+						return [r.method, r.body, r.headers, r.query, s.title, s.subtitle].join('\n').toLowerCase().includes(q);
+					});
+				},
 				get statusClass() {
-					if (this.status === 'connected') {
-						return 'status-dot status-connected';
-					} else if (this.status === 'error') {
-						return 'status-dot bg-red-500';
-					}
+					if (this.status === 'connected') return 'status-dot status-connected';
+					if (this.status === 'error') return 'status-dot bg-red-500';
 					return 'status-dot status-disconnected';
 				},
 
 				async init() {
-					const urlParams = new URLSearchParams(window.location.search);
-					const binId = urlParams.get('id');
-
+					const params = new URLSearchParams(window.location.search);
+					const binId = params.get('id');
+					this.pendingReq = params.get('req');
+					if (params.get('ttl')) this.ttl = params.get('ttl');
 					if (binId) {
 						this.currentBinId = binId;
 						this.connectWebSocket();
@@ -463,62 +220,51 @@
 
 				async generateNewWebhook() {
 					try {
-						const response = await fetch('/api/new');
+						const response = await fetch(`/api/new?ttl=${encodeURIComponent(this.ttl)}`);
 						const data = await response.json();
+						if (!response.ok || !data.id) {
+							this.status = 'error';
+							this.statusText = data.error || 'Failed to create webhook';
+							return;
+						}
 						this.currentBinId = data.id;
-
-						// Reset state
 						this.isExpired = false;
 						this.status = 'connecting';
 						this.statusText = 'Connecting';
 						this.requests = [];
 						this.selectedRequestId = null;
+						this.query = '';
 						this.timeLeft = '';
 						if (this.timerInterval) clearInterval(this.timerInterval);
-
+						if (data.expiresAt) {
+							this.expiresAt = data.expiresAt;
+							this.startTimer();
+						}
 						window.history.pushState({}, '', `?id=${this.currentBinId}`);
 						this.connectWebSocket();
 					} catch (error) {
 						console.error('Error generating webhook:', error);
+						this.status = 'error';
+						this.statusText = 'Failed to create webhook';
 					}
 				},
 
 				connectWebSocket() {
-					if (this.ws) {
-						this.ws.close();
-					}
-
+					if (this.ws) this.ws.close();
 					const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-					const wsUrl = `${wsProtocol}//${window.location.host}/ws/${this.currentBinId}`;
-
-					this.ws = new WebSocket(wsUrl);
-
-					this.ws.onopen = () => {
-						this.status = 'connected';
-						this.statusText = 'Connected';
-					};
-
+					this.ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/${this.currentBinId}`);
+					this.ws.onopen = () => { this.status = 'connected'; this.statusText = 'Connected'; };
 					this.ws.onmessage = async (event) => {
 						const message = JSON.parse(event.data);
-
 						if (message.type === 'initial_data') {
 							this.requests = message.data;
-							if (message.expiresAt) {
-								this.expiresAt = message.expiresAt;
-								this.startTimer();
-							}
-							// Auto-select the first request if available
-							if (this.requests.length > 0 && !this.selectedRequestId) {
-								await this.selectRequest(this.requests[0].id);
-							}
+							if (message.expiresAt) { this.expiresAt = message.expiresAt; this.startTimer(); }
+							this.applySelection(this.pendingReq);
+							this.pendingReq = null;
+							this.$nextTick(() => this.scrollSelected());
 						} else if (message.type === 'new_request') {
 							this.requests.unshift({ ...message.data, isNew: true });
-							// Auto-select new request
-							await this.selectRequest(message.data.id);
-							setTimeout(() => {
-								const req = this.requests.find((r) => r.id === message.data.id);
-								if (req) req.isNew = false;
-							}, 500);
+							if (this.selectedRequestId == null) this.applySelection(message.data.id);
 						} else if (message.type === 'deleted' && message.reason === 'expired') {
 							this.isExpired = true;
 							this.status = 'expired';
@@ -528,281 +274,204 @@
 							this.ws.close();
 						}
 					};
-
-					this.ws.onerror = (error) => {
-						console.error('WebSocket error:', error);
-						this.status = 'error';
-						this.statusText = 'Connection error';
-					};
-
+					this.ws.onerror = () => { this.status = 'error'; this.statusText = 'Connection error'; };
 					this.ws.onclose = () => {
-						if (this.isExpired) {
-							this.status = 'expired';
-							this.statusText = 'Expired';
-							return;
-						}
+						if (this.isExpired) return;
 						this.status = 'disconnected';
 						this.statusText = 'Disconnected';
 						setTimeout(() => this.connectWebSocket(), 3000);
 					};
 				},
 
-				async selectRequest(id) {
+				selectRequest(id) {
 					this.selectedRequestId = id;
-					await this.formatSelectedBody();
+					this.tab = 'body';
+					this.syncUrl();
+				},
+				applySelection(prefer) {
+					const wanted = prefer ?? this.selectedRequestId;
+					const match = this.requests.find((r) => String(r.id) === String(wanted));
+					if (match) this.selectedRequestId = match.id;
+					else if (this.selectedRequestId == null && this.requests.length) this.selectedRequestId = this.requests[0].id;
+					this.syncUrl();
+				},
+				syncUrl() {
+					if (!this.currentBinId) return;
+					const params = new URLSearchParams();
+					params.set('id', this.currentBinId);
+					if (this.selectedRequestId != null) params.set('req', String(this.selectedRequestId));
+					const next = `?${params}`;
+					if (window.location.search !== next) history.replaceState({}, '', next);
+				},
+				scrollSelected() {
+					const el = document.getElementById(`req-${this.selectedRequestId}`);
+					if (el) el.scrollIntoView({ block: 'nearest' });
 				},
 
-				async formatSelectedBody() {
-					if (!this.selectedRequest || !this.selectedRequest.body) {
-						this.formattedBody = '';
-						return;
-					}
-
-					try {
-						// Wait for shiki to be available
-						if (typeof window.shikiCodeToHtml === 'undefined') {
-							console.log('Waiting for shiki to load...');
-							await new Promise((resolve) => {
-								const checkShiki = setInterval(() => {
-									if (typeof window.shikiCodeToHtml !== 'undefined') {
-										clearInterval(checkShiki);
-										resolve();
-									}
-								}, 100);
-							});
-						}
-
-						const lang = this.detectLanguage(this.selectedRequest);
-						this.formattedBody = await window.shikiCodeToHtml(this.selectedRequest.body, {
-							lang: lang,
-							theme: 'min-light',
-						});
-					} catch (error) {
-						console.error('Error formatting code:', error);
-						this.formattedBody = '';
-					}
+				parsedBody(request) {
+					if (!request?.body) return null;
+					try { return JSON.parse(request.body); } catch { return null; }
 				},
-
-				detectLanguage(request) {
-					// Try to detect language from Content-Type header
-					try {
-						const headers = JSON.parse(request.headers);
-						const contentType = headers['content-type'] || '';
-
-						if (contentType.includes('json')) {
-							return 'json';
-						} else if (contentType.includes('xml')) {
-							return 'xml';
-						} else if (contentType.includes('html')) {
-							return 'html';
-						} else if (contentType.includes('javascript')) {
-							return 'javascript';
-						} else if (contentType.includes('yaml')) {
-							return 'yaml';
+				summary(request) {
+					const body = this.parsedBody(request);
+					if (body && typeof body === 'object' && !Array.isArray(body)) {
+						const op = body.OperationName || body.operation || body.event || body.type || body.action;
+						const title = op
+							? String(op).split('/').filter(Boolean).slice(-2).join('/')
+							: (body.Category || 'JSON object');
+						const subtitle = [body.Category, body.Result, body.Caller || body.caller].filter(Boolean).join(' · ');
+						return { title: String(title), subtitle };
+					}
+					if (Array.isArray(body)) return { title: `Array (${body.length})`, subtitle: '' };
+					const preview = (request.body || 'No body').replace(/\s+/g, ' ');
+					return { title: preview.length > 140 ? preview.slice(0, 140) + '…' : preview, subtitle: '' };
+				},
+				formatValue(value) {
+					if (typeof value === 'string') {
+						const trimmed = value.trim();
+						if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+							try { return JSON.stringify(JSON.parse(trimmed), null, 2); } catch { /* keep raw */ }
 						}
-					} catch (e) {
-						// Ignore header parsing errors
+						return value;
 					}
-
-					// Try to detect from body content
-					const body = request.body.trim();
-					if (body.startsWith('{') || body.startsWith('[')) {
-						return 'json';
-					} else if (body.startsWith('<')) {
-						return 'xml';
+					return JSON.stringify(value, null, 2);
+				},
+				bodyFields(request) {
+					const body = this.parsedBody(request);
+					if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+					return Object.entries(body).map(([key, value]) => this.codeField(key, value, request));
+				},
+				codeField(key, value) {
+					const text = this.formatValue(value);
+					const sniffed = this.detectLang(text, '');
+					const structured = sniffed !== 'text' && (text.includes('\n') || /^[[{<]/.test(text.trim()));
+					const code = key === 'Raw' || structured;
+					const lang = code ? (sniffed === 'text' ? 'json' : sniffed) : 'text';
+					return { key, value: text, lang, html: code ? this.highlight(text, lang) : '' };
+				},
+				contentType(request) {
+					const hit = this.getHeaders(request).find(([key]) => key.toLowerCase() === 'content-type');
+					return hit ? hit[1] : '';
+				},
+				prettyBody(request) {
+					const body = this.parsedBody(request);
+					return body == null ? (request.body || '') : JSON.stringify(body, null, 2);
+				},
+				highlightedBody(request) {
+					const text = this.prettyBody(request);
+					return this.highlight(text, this.detectLang(text, this.contentType(request)));
+				},
+				detectLang(text, contentType) {
+					const ct = (contentType || '').toLowerCase();
+					if (ct.includes('json')) return 'json';
+					if (ct.includes('html')) return 'html';
+					if (ct.includes('xml')) return 'xml';
+					if (ct.includes('yaml') || ct.includes('yml')) return 'yaml';
+					const trimmed = (text || '').trim();
+					if (!trimmed) return 'text';
+					if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+						try { JSON.parse(trimmed); return 'json'; } catch { /* not json */ }
 					}
-
+					if (trimmed.startsWith('<?xml') || trimmed.startsWith('<')) return /<html[\s>]/i.test(trimmed) ? 'html' : 'xml';
+					if (/^(---|%YAML)/.test(trimmed)) return 'yaml';
 					return 'text';
 				},
-
-				async copyToClipboard() {
-					try {
-						await navigator.clipboard.writeText(this.webhookUrl);
-						this.copyButtonText = 'Copied!';
-						setTimeout(() => {
-							this.copyButtonText = 'Copy';
-						}, 1500);
-					} catch (err) {
-						console.error('Failed to copy:', err);
-					}
+				escapeHtml(value) {
+					return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 				},
-
-				formatDate(timestamp) {
-					const date = new Date(timestamp);
-					return date.toLocaleString('en-US', {
-						month: 'short',
-						day: 'numeric',
-						hour: '2-digit',
-						minute: '2-digit',
-						second: '2-digit',
-						hour12: false,
-					});
+				highlight(text, lang) {
+					if (lang === 'json') return this.highlightJson(text);
+					if (lang === 'xml' || lang === 'html') return this.highlightXml(text);
+					return this.escapeHtml(text);
 				},
-
-				getBodyPreview(body) {
-					let preview = body || 'No body';
-					if (preview.length > 100) {
-						preview = preview.substring(0, 100) + '...';
-					}
-					return preview.replace(/\n/g, ' ');
-				},
-
-				getHeaders(request) {
-					try {
-						return Object.entries(JSON.parse(request.headers));
-					} catch (e) {
-						return [];
-					}
-				},
-
-				getQueryParams(request) {
-					if (!request.query) return [];
-					try {
-						// Remove leading '?' if present
-						const queryString = request.query.startsWith('?') ? request.query.slice(1) : request.query;
-						if (!queryString) return [];
-
-						// Parse query string into key-value pairs
-						const params = new URLSearchParams(queryString);
-						return Array.from(params.entries());
-					} catch (e) {
-						return [];
-					}
-				},
-
-				getMetadata(request) {
-					if (!request.metadata) return null;
-					try {
-						const metadata = JSON.parse(request.metadata);
-						// Filter out null/undefined values
-						const filtered = {};
-						for (const [key, value] of Object.entries(metadata)) {
-							if (value !== null && value !== undefined) {
-								filtered[key] = value;
+				highlightJson(src) {
+					let i = 0;
+					let out = '';
+					while (i < src.length) {
+						const c = src[i];
+						if (c === '"') {
+							let j = i + 1;
+							while (j < src.length) {
+								if (src[j] === '\\') { j += 2; continue; }
+								if (src[j] === '"') { j++; break; }
+								j++;
+							}
+							const token = src.slice(i, j);
+							let k = j;
+							while (src[k] === ' ' || src[k] === '\t') k++;
+							out += `<span class="${src[k] === ':' ? 'json-key' : 'json-str'}">${this.escapeHtml(token)}</span>`;
+							i = j;
+							continue;
+						}
+						if (c === '-' || (c >= '0' && c <= '9')) {
+							const match = src.slice(i).match(/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/);
+							if (match) {
+								out += `<span class="json-num">${match[0]}</span>`;
+								i += match[0].length;
+								continue;
 							}
 						}
-						return Object.keys(filtered).length > 0 ? filtered : null;
-					} catch (e) {
-						return null;
+						const word = src.startsWith('true', i) ? 'true' : src.startsWith('false', i) ? 'false' : src.startsWith('null', i) ? 'null' : '';
+						if (word && !/[A-Za-z0-9_]/.test(src[i + word.length] || '')) {
+							out += `<span class="${word === 'null' ? 'json-null' : 'json-bool'}">${word}</span>`;
+							i += word.length;
+							continue;
+						}
+						out += this.escapeHtml(c);
+						i++;
 					}
+					return out;
 				},
-
+				highlightXml(src) {
+					return this.escapeHtml(src)
+						.replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="xml-comment">$1</span>')
+						.replace(/(&lt;\/?)([A-Za-z_:][\w:.-]*)/g, '$1<span class="xml-tag">$2</span>')
+						.replace(/([A-Za-z_:][\w:.-]*)(=)(&quot;[^&]*&quot;)/g, '<span class="xml-attr">$1</span>$2<span class="xml-str">$3</span>');
+				},
+				getHeaders(request) {
+					try { return Object.entries(JSON.parse(request.headers)); } catch { return []; }
+				},
+				getMetadata(request) {
+					if (!request?.metadata) return null;
+					try {
+						const metadata = JSON.parse(request.metadata);
+						const filtered = {};
+						for (const [key, value] of Object.entries(metadata)) {
+							if (value !== null && value !== undefined && value !== '') filtered[key] = value;
+						}
+						return Object.keys(filtered).length ? filtered : null;
+					} catch { return null; }
+				},
 				formatMetadataKey(key) {
 					if (key === 'userIP') return 'User IP';
-
-					// Convert camelCase to readable format
 					const formatted = key.replace(/([A-Z])/g, ' $1').trim();
 					return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 				},
-
-				async copyToClipboardJson(data, label) {
-					try {
-						const jsonString = JSON.stringify(data, null, 2);
-						await navigator.clipboard.writeText(jsonString);
-
-						// Show feedback
-						const originalLabel = label;
-						label = 'Copied!';
-						setTimeout(() => {
-							label = originalLabel;
-						}, 1500);
-					} catch (err) {
-						console.error('Failed to copy:', err);
-					}
-				},
-
-				async copyQueryParams() {
-					if (!this.selectedRequest) return;
-
-					const params = this.getQueryParams(this.selectedRequest);
-					if (params.length === 0) return;
-
-					// Convert array of [key, value] pairs to object
-					const paramsObj = {};
-					params.forEach(([key, value]) => {
-						paramsObj[key] = value;
+				formatDate(timestamp) {
+					return new Date(timestamp).toLocaleString('en-US', {
+						month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
 					});
-
-					try {
-						const jsonString = JSON.stringify(paramsObj, null, 2);
-						await navigator.clipboard.writeText(jsonString);
-						this.copyStates.queryParams = 'Copied!';
-						setTimeout(() => {
-							this.copyStates.queryParams = 'Copy';
-						}, 1500);
-					} catch (err) {
-						console.error('Failed to copy:', err);
-					}
 				},
-
-				async copyMetadata() {
+				async copyToClipboard() {
+					await navigator.clipboard.writeText(this.webhookUrl);
+					this.copyButtonText = 'Copied';
+					setTimeout(() => { this.copyButtonText = 'Copy URL'; }, 1200);
+				},
+				async copyActive() {
 					if (!this.selectedRequest) return;
-
-					const metadata = this.getMetadata(this.selectedRequest);
-					if (!metadata) return;
-
-					try {
-						const jsonString = JSON.stringify(metadata, null, 2);
-						await navigator.clipboard.writeText(jsonString);
-						this.copyStates.metadata = 'Copied!';
-						setTimeout(() => {
-							this.copyStates.metadata = 'Copy';
-						}, 1500);
-					} catch (err) {
-						console.error('Failed to copy:', err);
-					}
+					let text = '';
+					if (this.tab === 'headers') text = JSON.stringify(Object.fromEntries(this.getHeaders(this.selectedRequest)), null, 2);
+					else if (this.tab === 'meta') text = JSON.stringify(this.getMetadata(this.selectedRequest) || {}, null, 2);
+					else text = this.prettyBody(this.selectedRequest);
+					await navigator.clipboard.writeText(text);
+					this.copyStates.active = 'Copied';
+					setTimeout(() => { this.copyStates.active = 'Copy'; }, 1200);
 				},
-
-				async copyHeaders() {
-					if (!this.selectedRequest) return;
-
-					const headers = Object.fromEntries(this.getHeaders(this.selectedRequest));
-
-					try {
-						const jsonString = JSON.stringify(headers, null, 2);
-						await navigator.clipboard.writeText(jsonString);
-						this.copyStates.headers = 'Copied!';
-						setTimeout(() => {
-							this.copyStates.headers = 'Copy';
-						}, 1500);
-					} catch (err) {
-						console.error('Failed to copy:', err);
-					}
-				},
-
-				async copyBody() {
-					if (!this.selectedRequest || !this.selectedRequest.body) return;
-
-					try {
-						const jsonString = JSON.stringify(JSON.parse(this.selectedRequest.body), null, 2);
-						await navigator.clipboard.writeText(jsonString);
-						this.copyStates.body = 'Copied!';
-						setTimeout(() => {
-							this.copyStates.body = 'Copy';
-						}, 1500);
-					} catch (err) {
-						// If body is not valid JSON, copy as is
-						try {
-							await navigator.clipboard.writeText(this.selectedRequest.body);
-							this.copyStates.body = 'Copied!';
-							setTimeout(() => {
-								this.copyStates.body = 'Copy';
-							}, 1500);
-						} catch (copyErr) {
-							console.error('Failed to copy:', copyErr);
-						}
-					}
-				},
-
 				startTimer() {
 					if (this.timerInterval) clearInterval(this.timerInterval);
-
 					const updateTimer = () => {
 						if (!this.expiresAt) return;
-
-						const now = Date.now();
-						const diff = this.expiresAt - now;
-
+						const diff = this.expiresAt - Date.now();
 						if (diff <= 0) {
 							this.isExpired = true;
 							this.status = 'expired';
@@ -810,19 +479,16 @@
 							clearInterval(this.timerInterval);
 							return;
 						}
-
-						const hours = Math.floor(diff / 3600000);
+						const days = Math.floor(diff / 86400000);
+						const hours = Math.floor((diff % 86400000) / 3600000);
 						const minutes = Math.floor((diff % 3600000) / 60000);
 						const seconds = Math.floor((diff % 60000) / 1000);
-
-						let timeString = '';
-						if (hours > 0) timeString += `${hours}h `;
-						if (minutes > 0 || hours > 0) timeString += `${minutes}m `;
-						timeString += `${seconds}s`;
-
-						this.timeLeft = timeString;
+						let time = '';
+						if (days) time += `${days}d `;
+						if (hours || days) time += `${hours}h `;
+						time += `${minutes}m ${seconds}s`;
+						this.timeLeft = time.trim();
 					};
-
 					updateTimer();
 					this.timerInterval = setInterval(updateTimer, 1000);
 				},

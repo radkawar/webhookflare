@@ -1,0 +1,24 @@
+# WebhookFlare
+
+> Public webhook inbox at https://webhook.t-iq.me. Create a bin, send any HTTP request to its hook URL, then read the captured requests over HTTP or WebSocket. No account and no auth. Anyone who knows the bin id can post to it and read everything it captured.
+
+Base URL: `https://webhook.t-iq.me`. JSON responses include CORS `Access-Control-Allow-Origin: *`. Errors are `{ "error": string }` with status 400, 429, 500, or 503. A bin keeps every captured request until it expires. Expiry deletes the bin and its requests. There is no non-expiring option. Captures are rate-limited to 50 per bin per 60 seconds.
+
+Create a bin with `GET /api/new?ttl=6h`. `ttl` is optional and defaults to `6h`. Allowed presets: `15m`, `1h`, `6h`, `24h`, `7d`, `30d`. A positive integer is seconds, from `900` to `2592000` (15 minutes to 30 days). Anything outside that range, including `never`, is `400`. Response: `{ "id": "epoo98me", "ttlMs": 21600000, "expiresAt": 1730000000000 }`. `expiresAt` is unix milliseconds. The id is 8 characters from `0-9a-z` and is not a secret. Hook URL: `https://webhook.t-iq.me/hook/{id}`. Viewer: `https://webhook.t-iq.me/?id={id}`. TTL is fixed at creation.
+
+Send a webhook with any method to `/hook/{id}`. Query string, headers, and raw body are stored. Response: `{ "success": true, "message": "Webhook captured", "requestId": 1 }`. Rate limit is 50 captures per bin per 60 seconds (429). Do not send real credentials, tokens, or private payloads unless the sender accepts that anyone with the id can read them.
+
+Read history with `GET /api/bin/{id}`. Response is an array of every stored request, newest first. Headers `X-Expires-At` (unix ms) and `X-TTL-Ms` describe the bin. Each item is `{ "id": number, "timestamp": ISO-8601, "method": string, "headers": string, "body": string, "query": string, "metadata": string }`. `headers` and `metadata` are JSON strings, not objects. `query` is the raw query string, including the leading `?`, or empty. Parse them before use.
+
+`headers` is every request header. `metadata` may include `city`, `postalCode`, `region`, `regionCode`, `country`, `continent`, `timezone`, `latitude`, `longitude`, `asOrganization`, and `userIP`.
+
+Live updates: open `wss://webhook.t-iq.me/ws/{id}`. On connect the server sends `{ "type": "initial_data", "data": [requests], "expiresAt": unix_ms }`. Each capture broadcasts `{ "type": "new_request", "data": request }`. At expiry it sends `{ "type": "deleted", "reason": "expired" }` and closes. `expiresAt` is milliseconds since epoch.
+
+## Endpoints
+
+- [Create bin](https://webhook.t-iq.me/api/new?ttl=6h): `GET` with optional `ttl` (`15m`–`30d`); returns `{ "id", "ttlMs", "expiresAt" }`
+- [List captured requests](https://webhook.t-iq.me/api/bin/{id}): `GET` returns every stored request for that bin, newest first
+- [Capture hook](https://webhook.t-iq.me/hook/{id}): any HTTP method; stores method, headers, body, query, and metadata
+- [Viewer](https://webhook.t-iq.me/?id={id}&req={requestId}): browser UI. `req` opens that captured request and stays selected when newer events arrive
+- [WebSocket](https://webhook.t-iq.me/ws/{id}): `wss` upgrade; initial history, then live captures
+- [This file](https://webhook.t-iq.me/llms.txt): agent instructions for this origin

@@ -41,16 +41,30 @@ interface CapturedMetadata {
 // CONSTANTS
 // ============================================================================
 
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+
 const CONFIG = {
-	TTL_MS: 6 * 60 * 60 * 1000, // 6 hours
-	//TTL_MS: 1 * 60 * 1000, // 1 min --- LOCAL TESTING ---
-	REQUEST_LIMIT: 100,
+	DEFAULT_TTL_MS: 6 * HOUR_MS,
+	MIN_TTL_MS: 15 * MINUTE_MS,
+	MAX_TTL_MS: 30 * DAY_MS,
+};
+
+const TTL_PRESETS: Record<string, number> = {
+	'15m': 15 * MINUTE_MS,
+	'1h': HOUR_MS,
+	'6h': 6 * HOUR_MS,
+	'24h': DAY_MS,
+	'7d': 7 * DAY_MS,
+	'30d': 30 * DAY_MS,
 };
 
 const CORS_HEADERS = {
 	'Access-Control-Allow-Origin': '*',
 	'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 	'Access-Control-Allow-Headers': 'Content-Type',
+	'Access-Control-Expose-Headers': 'X-Expires-At, X-TTL-Ms',
 };
 
 const ROUTES = {
@@ -96,22 +110,38 @@ export class WebhookBin extends DurableObject {
 	// ========================================================================
 
 	/**
-	 * Ensure this Durable Object has a createdAt timestamp and a scheduled alarm
+	 * Ensure this Durable Object has a createdAt timestamp, a stored TTL, and a scheduled alarm.
+	 * TTL is fixed at first init. Missing ttlMs means a bin created before configurable expiry (6 hours).
 	 */
-	private async ensureScheduled(): Promise<void> {
-		const createdAt = (await this.ctx.storage.get('createdAt')) as number | undefined;
-		if (!createdAt) {
+	private async ensureScheduled(ttlMs?: number): Promise<{ createdAt: number; ttlMs: number; expiresAt: number }> {
+		const existingCreatedAt = (await this.ctx.storage.get('createdAt')) as number | undefined;
+		if (!existingCreatedAt) {
 			const now = Date.now();
+			const ttl = clampTtl(ttlMs ?? CONFIG.DEFAULT_TTL_MS);
 			await this.ctx.storage.put('createdAt', now);
-			await this.ctx.storage.setAlarm(now + CONFIG.TTL_MS);
-			return;
+			await this.ctx.storage.put('ttlMs', ttl);
+			await this.ctx.storage.setAlarm(now + ttl);
+			return { createdAt: now, ttlMs: ttl, expiresAt: now + ttl };
 		}
 
-		// If alarm missing for some reason, re-create it based on createdAt
+		const storedTtl = (await this.ctx.storage.get('ttlMs')) as number | undefined;
+		const ttl = storedTtl ?? CONFIG.DEFAULT_TTL_MS;
+		const expiresAt = existingCreatedAt + ttl;
 		const alarm = await this.ctx.storage.getAlarm();
 		if (alarm == null) {
-			await this.ctx.storage.setAlarm(createdAt + CONFIG.TTL_MS);
+			await this.ctx.storage.setAlarm(Math.max(expiresAt, Date.now() + 1000));
 		}
+		return { createdAt: existingCreatedAt, ttlMs: ttl, expiresAt };
+	}
+
+	private async readMeta(): Promise<{ createdAt: number | null; ttlMs: number; expiresAt: number | null }> {
+		const createdAt = (await this.ctx.storage.get('createdAt')) as number | undefined;
+		const storedTtl = (await this.ctx.storage.get('ttlMs')) as number | undefined;
+		const ttlMs = storedTtl ?? CONFIG.DEFAULT_TTL_MS;
+		if (!createdAt) {
+			return { createdAt: null, ttlMs, expiresAt: null };
+		}
+		return { createdAt, ttlMs, expiresAt: createdAt + ttlMs };
 	}
 
 	// ========================================================================
@@ -167,11 +197,9 @@ export class WebhookBin extends DurableObject {
 	async getRequests(): Promise<WebhookRequest[]> {
 		const results = this.ctx.storage.sql
 			.exec(
-				`SELECT id, timestamp, method, headers, body, query, metadata 
-			 FROM requests 
-			 ORDER BY id DESC 
-			 LIMIT ?`,
-				CONFIG.REQUEST_LIMIT
+				`SELECT id, timestamp, method, headers, body, query, metadata
+			 FROM requests
+			 ORDER BY id DESC`
 			)
 			.toArray() as unknown as WebhookRequest[];
 
@@ -188,10 +216,24 @@ export class WebhookBin extends DurableObject {
 	async fetch(request: Request): Promise<Response> {
 		const url = new URL(request.url);
 
-		// Lightweight init route: ensure alarm is scheduled on creation
 		if (url.pathname === ROUTES.INIT) {
-			await this.ensureScheduled();
-			return new Response(RESPONSES.INITIALIZED, { status: 200 });
+			const raw = url.searchParams.get('ttl');
+			const ttlMs = raw == null ? undefined : Number(raw);
+			if (raw != null && !Number.isFinite(ttlMs)) {
+				return new Response('Invalid ttl', { status: 400 });
+			}
+			const meta = await this.ensureScheduled(ttlMs);
+			return new Response(JSON.stringify(meta), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		}
+
+		if (url.pathname === '/meta') {
+			return new Response(JSON.stringify(await this.readMeta()), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			});
 		}
 
 		// Handle WebSocket upgrade
@@ -206,25 +248,20 @@ export class WebhookBin extends DurableObject {
 	 * Handle a new WebSocket connection
 	 */
 	private async handleWebSocketConnection(request: Request): Promise<Response> {
-		// Ensure scheduling (if object was cold)
-		await this.ensureScheduled();
+		const meta = await this.ensureScheduled();
 
 		const pair = new WebSocketPair();
 		const [client, server] = Object.values(pair);
 
-		// Accept the WebSocket connection
 		server.accept();
 		this.sessions.add(server);
 
-		// Send existing requests on connection
 		const requests = await this.getRequests();
-		const createdAt = (await this.ctx.storage.get('createdAt')) as number;
-		const expiresAt = createdAt ? createdAt + CONFIG.TTL_MS : Date.now() + CONFIG.TTL_MS;
-
 		server.send(JSON.stringify({
 			type: 'initial_data',
 			data: requests,
-			expiresAt: expiresAt
+			expiresAt: meta.expiresAt,
+			ttlMs: meta.ttlMs,
 		}));
 
 		// Handle close event
@@ -316,14 +353,47 @@ function extractIdFromPath(path: string, position: number = 2): string | null {
 /**
  * Create a JSON response with CORS headers
  */
-function createJsonResponse(data: unknown, status: number = 200): Response {
+function createJsonResponse(
+	data: unknown,
+	status: number = 200,
+	extraHeaders: Record<string, string> = {}
+): Response {
 	return new Response(JSON.stringify(data), {
 		status,
 		headers: {
 			'Content-Type': 'application/json',
 			...CORS_HEADERS,
+			...extraHeaders,
 		},
 	});
+}
+
+function clampTtl(ttlMs: number): number {
+	if (!Number.isFinite(ttlMs)) return CONFIG.DEFAULT_TTL_MS;
+	return Math.min(CONFIG.MAX_TTL_MS, Math.max(CONFIG.MIN_TTL_MS, Math.floor(ttlMs)));
+}
+
+function parseTtl(raw: string | null): { ok: true; ttlMs: number } | { ok: false; error: string } {
+	if (raw == null || raw.trim() === '') return { ok: true, ttlMs: CONFIG.DEFAULT_TTL_MS };
+	const key = raw.trim().toLowerCase();
+	const preset = TTL_PRESETS[key];
+	let ttlMs: number | undefined = preset;
+	if (ttlMs == null && /^\d+$/.test(key)) ttlMs = Number(key) * 1000;
+	const duration = /^(\d+)(m|h|d)$/.exec(key);
+	if (ttlMs == null && duration) {
+		const amount = Number(duration[1]);
+		ttlMs = amount * (duration[2] === 'm' ? MINUTE_MS : duration[2] === 'h' ? HOUR_MS : DAY_MS);
+	}
+	if (ttlMs == null || !Number.isFinite(ttlMs)) {
+		return {
+			ok: false,
+			error: 'Invalid ttl. Use 15m, 1h, 6h, 24h, 7d, 30d, or seconds from 900 to 2592000.',
+		};
+	}
+	if (ttlMs < CONFIG.MIN_TTL_MS || ttlMs > CONFIG.MAX_TTL_MS) {
+		return { ok: false, error: 'ttl must be between 15 minutes and 30 days' };
+	}
+	return { ok: true, ttlMs };
 }
 
 /**
@@ -381,28 +451,31 @@ function buildMetadata(request: Request): CapturedMetadata {
  * Handle: POST /api/new
  * Generate a new webhook ID and initialize its Durable Object
  */
-async function handleCreateWebhook(env: Env): Promise<Response> {
+async function handleCreateWebhook(env: Env, request: Request): Promise<Response> {
 	if (!env.MY_DURABLE_OBJECT) {
 		console.error('MY_DURABLE_OBJECT binding is not configured');
 		return createErrorResponse('Service unavailable - Durable Object not configured', 503);
 	}
 
-	const id = generateWebhookId();
+	const parsed = parseTtl(new URL(request.url).searchParams.get('ttl'));
+	if (!parsed.ok) return createErrorResponse(parsed.error);
 
-	// Initialize the Durable Object now so it sets its createdAt + alarm immediately
+	const id = generateWebhookId();
 	const stub = env.MY_DURABLE_OBJECT.get(
 		env.MY_DURABLE_OBJECT.idFromName(id)
 	) as DurableObjectStub<WebhookBin>;
 
 	try {
-		// Call a lightweight init route on the DO
-		await stub.fetch(new Request('https://init/'));
+		const initResponse = await stub.fetch(new Request(`https://internal/init?ttl=${parsed.ttlMs}`));
+		if (!initResponse.ok) {
+			return createErrorResponse('Failed to initialize webhook', 500);
+		}
+		const meta = (await initResponse.json()) as { ttlMs: number; expiresAt: number };
+		return createJsonResponse({ id, ttlMs: meta.ttlMs, expiresAt: meta.expiresAt });
 	} catch (err) {
-		// Non-fatal; DO may still be initialized on first real use
 		console.error('DO init failed', err);
+		return createErrorResponse('Failed to initialize webhook', 500);
 	}
-
-	return createJsonResponse({ id });
 }
 
 /**
@@ -424,8 +497,15 @@ async function handleGetBinRequests(env: Env, id: string): Promise<Response> {
 	) as DurableObjectStub<WebhookBin>;
 
 	try {
-		const requests = await stub.getRequests();
-		return createJsonResponse(requests);
+		const [requests, metaResponse] = await Promise.all([
+			stub.getRequests(),
+			stub.fetch(new Request('https://internal/meta')),
+		]);
+		if (!metaResponse.ok) return createErrorResponse('Failed to retrieve requests', 500);
+		const meta = (await metaResponse.json()) as { ttlMs: number; expiresAt: number | null };
+		const extraHeaders: Record<string, string> = { 'X-TTL-Ms': String(meta.ttlMs) };
+		if (meta.expiresAt != null) extraHeaders['X-Expires-At'] = String(meta.expiresAt);
+		return createJsonResponse(requests, 200, extraHeaders);
 	} catch (err) {
 		console.error(`Failed to get requests for bin ${id}:`, err);
 		return createErrorResponse('Failed to retrieve requests', 500);
@@ -530,7 +610,7 @@ export default {
 
 			// Route to appropriate handler
 			if (path === ROUTES.API_NEW) {
-				return handleCreateWebhook(env);
+				return handleCreateWebhook(env, request);
 			}
 
 			if (path.startsWith(ROUTES.API_BIN)) {
