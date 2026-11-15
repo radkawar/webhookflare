@@ -1,3 +1,4 @@
+import PostalMime from 'postal-mime';
 import { DurableObject } from 'cloudflare:workers';
 
 /**
@@ -590,6 +591,87 @@ async function handleWebhookCapture(
 	}
 }
 
+const EMAIL_DOMAINS = ['webhook.t-iq.me', 't-iq.me'];
+const BIN_ID = /^[a-z0-9]{8}$/;
+const EMAIL_PART_LIMIT = 100_000;
+
+function binIdFromRecipient(address: string): string | null {
+	const at = address.lastIndexOf('@');
+	if (at <= 0) return null;
+	const domain = address.slice(at + 1).toLowerCase();
+	if (!EMAIL_DOMAINS.includes(domain)) return null;
+	let local = address.slice(0, at).toLowerCase();
+	const plus = local.indexOf('+');
+	if (plus >= 0) local = local.slice(0, plus);
+	return BIN_ID.test(local) ? local : null;
+}
+
+function clipEmailPart(value: string | undefined | null): string | undefined {
+	if (!value) return undefined;
+	return value.length > EMAIL_PART_LIMIT ? `${value.slice(0, EMAIL_PART_LIMIT)}\n…truncated` : value;
+}
+
+function emailHeaders(headers: Headers): Record<string, string> {
+	const record: Record<string, string> = {};
+	headers.forEach((value, key) => {
+		record[key] = value;
+	});
+	return record;
+}
+
+async function handleInboundEmail(message: ForwardableEmailMessage, env: Env): Promise<void> {
+	const id = binIdFromRecipient(message.to);
+	if (!id) {
+		message.setReject('Unknown webhook address');
+		return;
+	}
+	if (!env.MY_DURABLE_OBJECT) {
+		message.setReject('Webhook storage is unavailable');
+		return;
+	}
+	if (env.WEBHOOK_RATE_LIMITER) {
+		const { success } = await env.WEBHOOK_RATE_LIMITER.limit({ key: id });
+		if (!success) {
+			message.setReject('Rate limit exceeded');
+			return;
+		}
+	}
+
+	const stub = env.MY_DURABLE_OBJECT.get(env.MY_DURABLE_OBJECT.idFromName(id)) as DurableObjectStub<WebhookBin>;
+	const metaResponse = await stub.fetch(new Request('https://internal/meta'));
+	const meta = (await metaResponse.json()) as { createdAt: number | null };
+	if (!meta.createdAt) {
+		message.setReject('Unknown webhook address');
+		return;
+	}
+
+	const parsed = await PostalMime.parse(message.raw);
+	const body = JSON.stringify({
+		from: message.from,
+		to: message.to,
+		subject: parsed.subject || '',
+		text: clipEmailPart(parsed.text),
+		html: clipEmailPart(parsed.html),
+		attachments: (parsed.attachments || []).map((attachment) => ({
+			filename: attachment.filename || '',
+			mimeType: attachment.mimeType || '',
+			disposition: attachment.disposition || '',
+			size: attachment.content ? attachment.content.byteLength || attachment.content.length || 0 : 0,
+		})),
+	});
+	const headers = emailHeaders(message.headers);
+	headers.from = message.from;
+	headers.to = message.to;
+	if (parsed.subject) headers.subject = parsed.subject;
+	const metadata = JSON.stringify({
+		rawSize: message.rawSize,
+		from: message.from,
+		authentication: message.headers.get('authentication-results') || undefined,
+	});
+	await stub.captureRequest('EMAIL', headers, body, '', metadata);
+}
+
+
 // ============================================================================
 // MAIN HANDLER
 // ============================================================================
@@ -640,5 +722,8 @@ export default {
 			console.error('Unhandled error in fetch handler:', err);
 			return createErrorResponse('Internal server error', 500);
 		}
+	},
+	async email(message, env) {
+		await handleInboundEmail(message, env);
 	},
 } satisfies ExportedHandler<Env>;

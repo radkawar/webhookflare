@@ -15,7 +15,7 @@
 		* { scrollbar-color: #d4d4d4 transparent; scrollbar-width: thin; }
 		body { font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 		.mono, .mono * { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-		.method-badge { display: inline-flex; justify-content: center; min-width: 3.4rem; border-radius: 0.25rem; padding: 0.05rem 0.35rem; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+		.method-EMAIL { color: #9a3412; background: #ffedd5; }
 		.method-GET { color: #15803d; background: #dcfce7; }
 		.method-POST { color: #1d4ed8; background: #dbeafe; }
 		.method-PUT { color: #a16207; background: #fef9c3; }
@@ -53,18 +53,26 @@
 			</div>
 		</div>
 
-		<div class="border-b border-neutral-200 bg-white px-4 py-2 flex items-center gap-2 flex-shrink-0">
-			<input type="text" readonly class="flex-1 min-w-0 px-2 py-1.5 border border-neutral-300 bg-neutral-50 mono text-xs rounded" :value="webhookUrl" />
-			<button class="px-2.5 py-1.5 bg-neutral-900 text-white text-xs rounded" @click="copyToClipboard()" x-text="copyButtonText"></button>
-			<label class="text-xs text-neutral-500 shrink-0">Keep</label>
-			<select x-model="ttl" class="px-2 py-1.5 border border-neutral-300 bg-white text-xs rounded">
-				<option value="1h">1 hour</option>
-				<option value="6h">6 hours</option>
-				<option value="24h">24 hours</option>
-				<option value="7d">7 days</option>
-				<option value="30d">30 days</option>
-			</select>
-			<button class="px-2.5 py-1.5 border border-neutral-300 text-xs rounded bg-white" @click="generateNewWebhook()">New</button>
+		<div class="border-b border-neutral-200 bg-white px-4 py-2 flex flex-col gap-2 flex-shrink-0">
+			<div class="flex items-center gap-2">
+				<span class="text-xs text-neutral-500 w-12 shrink-0">Hook</span>
+				<input type="text" readonly class="flex-1 min-w-0 px-2 py-1.5 border border-neutral-300 bg-neutral-50 mono text-xs rounded" :value="webhookUrl" />
+				<button class="px-2.5 py-1.5 bg-neutral-900 text-white text-xs rounded" @click="copyToClipboard()" x-text="copyButtonText"></button>
+				<label class="text-xs text-neutral-500 shrink-0">Keep</label>
+				<select x-model="ttl" class="px-2 py-1.5 border border-neutral-300 bg-white text-xs rounded">
+					<option value="1h">1 hour</option>
+					<option value="6h">6 hours</option>
+					<option value="24h">24 hours</option>
+					<option value="7d">7 days</option>
+					<option value="30d">30 days</option>
+				</select>
+				<button class="px-2.5 py-1.5 border border-neutral-300 text-xs rounded bg-white" @click="generateNewWebhook()">New</button>
+			</div>
+			<div class="flex items-center gap-2">
+				<span class="text-xs text-neutral-500 w-12 shrink-0">Email</span>
+				<input type="text" readonly class="flex-1 min-w-0 px-2 py-1.5 border border-neutral-300 bg-neutral-50 mono text-xs rounded" :value="emailAddress" />
+				<button class="px-2.5 py-1.5 border border-neutral-300 text-xs rounded bg-white" @click="copyEmail()" x-text="copyEmailText"></button>
+			</div>
 		</div>
 
 		<div class="flex flex-1 min-h-0">
@@ -176,6 +184,7 @@
 				status: 'connecting',
 				statusText: 'Connecting',
 				copyButtonText: 'Copy URL',
+				copyEmailText: 'Copy',
 				copyStates: { active: 'Copy' },
 				expiresAt: null,
 				timeLeft: '',
@@ -187,6 +196,9 @@
 
 				get webhookUrl() {
 					return this.currentBinId ? `${window.location.origin}/hook/${this.currentBinId}` : 'Generating...';
+				},
+				get emailAddress() {
+					return this.currentBinId ? `${this.currentBinId}@webhook.t-iq.me` : 'Generating...';
 				},
 				get selectedRequest() {
 					return this.requests.find((r) => r.id === this.selectedRequestId) || null;
@@ -315,6 +327,9 @@
 				summary(request) {
 					const body = this.parsedBody(request);
 					if (body && typeof body === 'object' && !Array.isArray(body)) {
+						if (body.subject) {
+							return { title: String(body.subject), subtitle: body.from ? String(body.from) : '' };
+						}
 						const op = body.OperationName || body.operation || body.event || body.type || body.action;
 						const title = op
 							? String(op).split('/').filter(Boolean).slice(-2).join('/')
@@ -456,6 +471,11 @@
 					await navigator.clipboard.writeText(this.webhookUrl);
 					this.copyButtonText = 'Copied';
 					setTimeout(() => { this.copyButtonText = 'Copy URL'; }, 1200);
+				},
+				async copyEmail() {
+					await navigator.clipboard.writeText(this.emailAddress);
+					this.copyEmailText = 'Copied';
+					setTimeout(() => { this.copyEmailText = 'Copy'; }, 1200);
 				},
 				async copyActive() {
 					if (!this.selectedRequest) return;

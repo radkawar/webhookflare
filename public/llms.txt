@@ -8,6 +8,8 @@ Create a bin with `GET /api/new?ttl=6h`. `ttl` is optional and defaults to `6h`.
 
 Send a webhook with any method to `/hook/{id}`. Query string, headers, and raw body are stored. Response: `{ "success": true, "message": "Webhook captured", "requestId": 1 }`. Rate limit is 50 captures per bin per 60 seconds (429). Do not send real credentials, tokens, or private payloads unless the sender accepts that anyone with the id can read them.
 
+Email the same bin at `{id}@webhook.t-iq.me`. The local part must be the existing 8-character bin id. Mail to any other address is rejected. The captured request has method `EMAIL` and a JSON body `{ "from", "to", "subject", "text", "html", "attachments" }`. Attachment bytes are not stored, only filename, type, and size. The same 50-per-minute rate limit applies.
+
 Read history with `GET /api/bin/{id}`. Response is an array of every stored request, newest first. Headers `X-Expires-At` (unix ms) and `X-TTL-Ms` describe the bin. Each item is `{ "id": number, "timestamp": ISO-8601, "method": string, "headers": string, "body": string, "query": string, "metadata": string }`. `headers` and `metadata` are JSON strings, not objects. `query` is the raw query string, including the leading `?`, or empty. Parse them before use.
 
 `headers` is every request header. `metadata` may include `city`, `postalCode`, `region`, `regionCode`, `country`, `continent`, `timezone`, `latitude`, `longitude`, `asOrganization`, and `userIP`.
